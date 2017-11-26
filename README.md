@@ -200,7 +200,7 @@ root@1726471e9694:/# tensorflow_model_server --port=9000 --model_name=wide_deep 
 [2] 1600
 ```
 Some explaination for the arguments. ```--port=9000``` specifies the port number and ```--model_name=wide_deep``` specifies the name. Both can be any number or any string but it is important as later in client python file these arguments will have to be added in when sending the request.
-The ```model_base_path``` argument is fixed and it points to the directory of the export folder you copied just now to the docker container. ```&> wide_deep_log``` redirects the stdout to this file wide_deep_log. (see [this](https://superuser.com/questions/335396/what-is-the-difference-between-and-in-bash/335415)).
+The ```model_base_path``` argument is fixed and it points to the directory of the export folder you copied just now to the docker container. ```&> wide_deep_log``` redirects the stdout to this file wide_deep_log. (see [this](https://superuser.com/questions/335396/what-is-the-difference-between-and-in-bash/335415)). The last ```&``` just executes this entire process in the background instead (if not it will be stuck there, try omit it and you will know what I mean).
 
 To check if the model is hosted properly, run this command:
 ```
