@@ -1,1 +1,1 @@
-# deploy-wide-and-deep-network-in-GCP-and-kubernetes
+# Deploying a wide-and-deep network in GCP and Kubernetes
