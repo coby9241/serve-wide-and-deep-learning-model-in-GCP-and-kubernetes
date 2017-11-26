@@ -8,7 +8,7 @@ Throughout this guide, I highly recommend you follow these 2 links:
 - Vitaly Bezgachev's awesome posts, [Part 1](https://towardsdatascience.com/how-to-deploy-machine-learning-models-with-tensorflow-part-1-make-your-model-ready-for-serving-776a14ec3198), [Part 2](https://towardsdatascience.com/how-to-deploy-machine-learning-models-with-tensorflow-part-2-containerize-it-db0ad7ca35a7) and [Part 3](https://towardsdatascience.com/how-to-deploy-machine-learning-models-with-tensorflow-part-3-into-the-cloud-7115ff774bb6)
 - [Tensorflow's Inception Serving guide](https://www.tensorflow.org/serving/serving_inception)
 
-as I myself followed them very closely when deploying my own model.
+as I myself followed them very closely when deploying my own model. This document is written with the intent of only reminding myself how to do the tensorflow serving portion so it may not be very helpful as a step by step guide, but Windows OS users may find this useful as well as people who intends to use GCP for deploying to production.
 
 ## Tools you will need:
 
@@ -30,6 +30,8 @@ The tools you will need may differ depending on the OS you are working on, and d
 
 ## 1. Creating and training a wide & deep learning model, and exporting it
 
+### Introduction
+
 Much of the concept of a wide & deep learning model is explained in the original paper [here](https://www.google.com.sg/url?sa=t&rct=j&q=&esrc=s&source=web&cd=1&cad=rja&uact=8&ved=0ahUKEwjtpqS7ntzXAhUIR48KHQ6yBkwQFggnMAA&url=https%3A%2F%2Farxiv.org%2Fabs%2F1606.07792&usg=AOvVaw0Ou4rDtQZAXCC1QqxJPBIu) as well in the guide [here](https://www.tensorflow.org/tutorials/wide_and_deep), so I won't go into the specifics of it. Some of the stuff you may want to read up on your own will be 
 - creating the wide and deep columns
 - creating the cross columns
@@ -39,6 +41,8 @@ Much of the concept of a wide & deep learning model is explained in the original
 This model used in this case is highly referenced from yufengg's [model](https://github.com/yufengg/widendeep), although I updated the APIs for the features according to the ones used in the wide & deep learning guide by Tensorflow. 
 
 This example uses [Kaggle Criteo's Dataset](https://www.kaggle.com/c/criteo-display-ad-challenge) for training the recommendation model and it outputs a prediction of 1 or 0 whether an ad will be clicked or not. The dataset consists of two files, train.csv and eval.csv. The dataset consists of a ground truth label, 26 categorical variables and 13 interval variables.
+
+### Running the model
 
 I have created a python file _train_and_eval.py_ that trains a wide and deep model using the _tf.contrib.learn.DNNLinearCombinedClassifier_ function. However, before you run the model, a key line in the code you will need to change is the line
 ```
@@ -66,8 +70,10 @@ Do check that the saved_model.pb and variables folder is created from the run, a
 
 ## 2. Containerizing the model and making it available for serving in the cloud
 
-For a Windows user, before you start on this part, remember to install Docker/Docker Toolbox(if you do not have Hyper-V).
-For Docker Toolbox users, the docker commands are not readly available in the command line. Here are some simple steps to enable it.
+### Install Docker/Docker Toolbox
+
+As a side track, before you start on this part, remember to install Docker/Docker Toolbox(if you do not have Hyper-V).
+For Docker Toolbox users, especially Windows users, the docker commands are not readly available in the command line. Here are some simple steps to enable it.
 
 Step 1. Run this command in your CLI
 ```
@@ -94,6 +100,80 @@ Copy
 @FOR /f "tokens=*" %i IN ('docker-machine env default') DO @%i
 ```
 into the CLI and press enter. This will then enable docker commands in your shell.
+
+Back to the main topic, to create the image for Tensorflow serving, just clone the repository. You can clone it anywhere you like in Windows as long as you remember where it is, using this command:
+```
+git clone --recurse-submodules https://github.com/tensorflow/serving.git
+```
+Please remember to include the --recursive-submodules command. This will include Tensorflow as well as its models submodules during the cloning.
+
+### Building the Docker Image
+
+The building of the Docker Image is done using a Dockerfile that can be found in the *serving/tensorflow_serving/tools/docker* directory from the folder you just cloned. There are two types of files:
+- Dockerfile.devel
+- Dockerfile.devel-gpu (for GPU support)
+
+For this case, due to money issues, I will be using the normal Dockerfile without GPU support.
+
+We use this file to create the docker image. First, cd into the cloned *serving* folder.
+```
+cd serving
+```
+Then run the below command to build the docker image.
+```
+docker build --pull -t <username>/tensorflow-serving-devel -f tensorflow_serving/tools/docker/Dockerfile.devel .
+```
+Now run a container with the image you built:
+```
+docker run --name=tensorflow_container -it <username>/tensorflow-serving-devel
+```
+If successful, you should be inside the shell of the new docker image you created.
+
+If you exit the shell by any means, to re-enter just run:
+```
+docker start -i tensorflow_container
+```
+to re-enter the shell.
+
+Inside the shell of the container, make sure you are at the root directory and clone the Tensorflow serving repo:
+```
+cd ~
+cd /
+git clone --recurse-submodules https://github.com/tensorflow/serving.git
+```
+Next we configure our build.
+```
+cd /serving/tensorflow
+./configure
+```
+Keep pressing enter without inputting in everything to accept the default. For this example, we can accept all defaults.
+Before we move to the next step of building the Tensorflow serving, ensure that your Docker VM has enough RAM. One issue that may occur would be that the build terminate midway if it does not have enough RAM. To allocate more RAM in Virtualbox, stop the docker machine image, go to settings and give more RAM, and restart the machine again.
+
+Now that you have enough RAM for the machine, you can start the build process by running this command. Make sure you are in the serving folder.
+```
+bazel build -c opt tensorflow_serving/...
+```
+This will take very long. For me it took ~6000 seconds.
+Check if you are able to run the tensorflow_model_server using this command:
+```
+bazel-bin/tensorflow_serving/model_servers/tensorflow_model_server
+```
+If yes, you are good to go, else if you encounter an error such as no such file or directory (like me) you have to install the *tensorflow_model_server* in your image externally using the instructions in this [link](https://www.tensorflow.org/serving/setup)
+
+Note: this will affect your deployment of the image in the cloud later as the .yaml file used to deploy the Kubernetes Cluster will be affected by this. My guide later assumes the above command cannot work and I installed the *tensorflow_model_server* using *apt-get*. If you wish to still use the above command to run it, I suggest you learn abit about how kubectl commands and the yaml file works to write your own file so that you know how to modify it. 
+
+To install *tensorflow_model_server*, follow these two steps:
+1. Add TensorFlow Serving distribution URI as a package source (one time setup)
+```
+echo "deb [arch=amd64] http://storage.googleapis.com/tensorflow-serving-apt stable tensorflow-model-server tensorflow-model-server-universal" | tee /etc/apt/sources.list.d/tensorflow-serving.list
+
+curl https://storage.googleapis.com/tensorflow-serving-apt/tensorflow-serving.release.pub.gpg | apt-key add -
+```
+2. Install and update TensorFlow ModelServer
+```
+apt-get update && apt-get install tensorflow-model-server
+```
+Once installed, the binary can be invoked using the command ```tensorflow_model_server```.
 
 
 
