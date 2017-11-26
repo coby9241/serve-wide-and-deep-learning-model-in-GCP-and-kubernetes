@@ -451,7 +451,7 @@ to
 ```
 request.inputs['C1'].CopyFrom(tf.contrib.util.make_tensor_proto(input_C1, shape=[1]))
 ```
-should do the trick.
+should do the trick. Do note that make_tensor_proto only accepts "values" of a python scalar, a python list, a numpy ndarray, or a numpy scalar. (Refer to [this](https://www.tensorflow.org/versions/r1.1/api_docs/python/tf/contrib/util/make_tensor_proto))
 
 Follow these steps to run the client py file.
 ```
@@ -506,6 +506,61 @@ Then again, if these set of instructions don't work for you, don't give up. It i
 
 Please feel free to contact me if there's any questions or if there's anything wrong in this documentation.
 
+## Appendix: Nifty thing I learnt to code the client.py
+
+Something I've learnt about coding the client.py file is its not easy, and to do that what you must do is to study the input and output ``` SignatureDefs``` for the exported model. Unfortunately, for my case when I used the function to export the model I couldn't see the SignatureDef at all. Luckily, I found this [link](https://www.tensorflow.org/versions/r1.2/programmers_guide/saved_model_cli) that helped me. It is called ```saved_model_cli```.
+
+By running this command:
+```
+saved_model_cli show --dir <dir to the folder where the pb and variables folder is kept>  --all
+```
+it will show the SignatureDefs for both the input and the output, which is very useful when trying to code the inputs to the request using ```request.inputs.CopyFrom``` and ```tf.contrib.util.make_tensor_proto```. For me, after running the command:
+```
+saved_model_cli show --dir model_WIDE_AND_DEEP_LEARNING/export/1511606217  --all
+```
+I studied the SignatureDef output:
+```
+MetaGraphDef with tag-set: 'serve' contains the following SignatureDefs:
+
+signature_def['default_input_alternative:None']:
+The given SavedModel SignatureDef contains the following input(s):
+inputs['C1'] tensor_info:
+    dtype: DT_STRING
+    shape: (-1)
+    name: Placeholder_13:0
+inputs['C10'] tensor_info:
+    dtype: DT_STRING
+    shape: (-1)
+    name: Placeholder_22:0
+inputs['C11'] tensor_info:
+    dtype: DT_STRING
+    shape: (-1)
+    name: Placeholder_23:0
+inputs['C12'] tensor_info:
+    dtype: DT_STRING
+    shape: (-1)
+    name: Placeholder_24:0
+inputs['C13'] tensor_info:
+    dtype: DT_STRING
+    shape: (-1)
+    name: Placeholder_25:0
+inputs['C14'] tensor_info:
+    dtype: DT_STRING
+    shape: (-1)
+    name: Placeholder_26:0
+inputs['C15'] tensor_info:
+    dtype: DT_STRING
+    shape: (-1)
+    name: Placeholder_27:0
+inputs['C16'] tensor_info:
+    dtype: DT_STRING
+    shape: (-1)
+    name: Placeholder_28:0
+ ...
+ ...
+```
+and realised I had to provide multiple Tensor inputs into the request. This is a helpful tool to find out how to code your client. In fact, what I saw online was that even the Google Devs use this tool to debug the SignatureDefs.
+
 ## Credits and Useful Links (I'm spamming abit but that's how many links I referenced):
 
 1. Vitaly Bezgachev's awesome posts, [Part 1](https://towardsdatascience.com/how-to-deploy-machine-learning-models-with-tensorflow-part-1-make-your-model-ready-for-serving-776a14ec3198), [Part 2](https://towardsdatascience.com/how-to-deploy-machine-learning-models-with-tensorflow-part-2-containerize-it-db0ad7ca35a7) and [Part 3](https://towardsdatascience.com/how-to-deploy-machine-learning-models-with-tensorflow-part-3-into-the-cloud-7115ff774bb6). He used Azure but I had some issues with Azure cli so I used GCP instead.
@@ -516,3 +571,4 @@ Please feel free to contact me if there's any questions or if there's anything w
 6. Siraj's [repo for deploying Tensorflow to production](https://github.com/llSourcell/How-to-Deploy-a-Tensorflow-Model-in-Production)
 7. https://www.tensorflow.org/versions/r1.2/programmers_guide/saved_model_cli
 8. https://stackoverflow.com/questions/44125403/how-to-access-tensor-content-values-in-tensorproto-in-tensorflow
+9. https://www.tensorflow.org/versions/r1.1/api_docs/python/tf/contrib/util/make_tensor_proto
