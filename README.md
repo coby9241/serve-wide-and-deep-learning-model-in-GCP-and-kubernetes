@@ -231,19 +231,215 @@ Congrats, you have successfully served a Tensorflow model locally.
 
 For me I used GCP, they have the $300 credits thing that you can use to try out these project. Just make sure you have the 300 dollar credits in your account under the billing section.
 
-### Creating a project
+### Creating a project, installing Google SDK and Kubectl
 
+Create a new project named tensorflow-serving. Remember this ID somewhere because it will be used later.
 ![New Project](/images/tensorflow_new_project.png)
 
+Make sure you enabled the Container Engine API by going to the Kubernetes Window in the Project Dashboard.
+![Enable API](/images/enable_container_API.png)
 
-### Installing Google Cloud SDK
+Install Google SDK as well.
+![Install SDK](/images/install_SDK.png)
 
-### Preparing the container
+Finally, run this command in CLI to install Kubectl, command line interface for Kubernetes:
+```
+gcloud components install kubectl
+```
+
+### Preparing the container to push to cloud
 
 First we need to find the container we need to push to the cloud. Run this command:
 ```
 docker ps --all
 ```
+This will output the relevant info of the Docker Containers. Take note of the CONTAINER ID column
+```
+CONTAINER ID        IMAGE                              COMMAND             CREATED             STATUS              PORTS               NAMES
+1726471e9694        looboon/tensorflow-serving-devel   "/bin/bash"         21 hours ago        Up 12 hours                             tensorflow_container
+```
+Next, we create a docker image to push to GCP from the container using the CONTAINER ID.
+```
+docker commit 1726471e9694 looboon/tensorflow-serving-wide-deep:v1.0
+```
+
+Login to your GCP Project 
+```
+gcloud auth login --project tensorflow-serving
+```
+You will get a pop up to agree to something using your account, just press agree. Now you create a new Google Container Engine cluster for service deployment. For this example, two nodes will be fine.
+```
+gcloud container clusters create wide-deep-serving-cluster --num-nodes 2
+```
+Set the default cluster for gcloud container command and pass cluster credentials to kubectl.
+```
+gcloud config set container/cluster wide-deep-serving-cluster
+gcloud container clusters get-credentials wide-deep-serving-cluster
+```
+
+### Upload the Docker image
+Let's now push our image to the Google Container Registry so that we can run it on Google Cloud Platform.
+First we list the images in CLI.
+```
+docker image ls
+```
+Results:
+```
+REPOSITORY                             TAG                 IMAGE ID            CREATED             SIZE
+looboon/tensorflow-serving-wide-deep   v1.0                3f5e6138cb01        4 minutes ago       4.41GB
+looboon/tensorflow-serving-devel       latest              46bb17334e0b        13 hours ago        1.07GB
+ubuntu                                 16.04               20c44cd7596f        8 days ago          123MB
+```
+Tag the looboon/tensorflow-serving-wide-deep image using the Container Registry format and our project name. Take note, for the last argument, use your own project id the one with the numbers. That was you needed to remember your project ID. This instruction was missed out in the inception serving guide in the Tensorflow documentation.
+```
+docker tag looboon/tensorflow-serving-wide-deep:v1.0 gcr.io/<project-id>/wide_deep
+```
+For mine it will be:
+```
+docker tag looboon/tensorflow-serving-wide-deep:v1.0 gcr.io/tensorflow-serving-187205/wide_deep
+```
+Next we push the image to the Registry. Remember to replace your string with your own project id.
+```
+gcloud docker -- push gcr.io/tensorflow-serving-187205/wide_deep
+```
+
+### Create Kubernetes Deployment and Service
+
+The deployment consists of 2 replicas of wide and deep inference server controlled by a Kubernetes Deployment. The replicas are exposed externally by a Kubernetes Service along with an External Load Balancer.
+
+We create them using the Kubernetes config wide_deep_k8s.yaml that is in this repo. In this file,  a deployment controller and a service is defined. It is possible to deploy the entire cluster using kubectl, but the yaml file makes it more convinient. 
+
+Warning though, due to some issues, you will need to modify this file for your own usage. I will explain abit. Some of the important things to note in the yaml config file:
+
+The config file is split into two parts
+1. Deployment
+2. Service
+
+#### Deployment
+I want to deploy my Docker image into 2 Pods. This two lines specify that only two pods will be used:
+```
+spec:
+  replicas: 2
+```
+and to pull them from my Google Cloud Registry as per below
+```
+spec:
+  containers:
+  - name: wide-deep-container
+    image: gcr.io/tensorflow-serving-187205/wide_deep
+```
+This few lines above are very important, especially the image. This line must be the same as the image you pushed into the gcloud using the ```gcloud docker --push``` command you used previously. Change the project ID to your own.
+
+After deployment a Pod should start the Shell and start TensorFlow, serving a wide-and-deep model, in the Docker container on the port 9000:
+```
+command:
+- /bin/sh
+- -c
+args:
+- tensorflow_model_server --port=9000 --model_name=wide_deep --model_base_path=/serving/export
+ports:
+- containerPort: 9000
+```
+Here is another important point. Remember when I said if you can run the tensorflow_model_server using ```bazel-bin/tensorflow_serving/model_servers/tensorflow_model_server``` command, it might affect the deployment of the image as .yaml file used to deploy the Kubernetes Cluster will be affected by this? Well here it is. 
+
+If you managed to run the tensorflow_model_server using ```bazel-bin/tensorflow_serving/model_servers/tensorflow_model_server``` and did not apt-get install tensorflow_model_server, you just need to change the above line to ```/serving/bazel-bin/tensorflow_serving/model_servers/tensorflow_model_server --port=9000 --model_name=wide_deep --model_base_path=/serving/export``` and it will work fine as well.
+
+#### Service
+Service must accept external requests on port 9000 and forward them to a container port 9000 in a Pod:
+```
+ports:
+- port: 9000
+  targetPort: 9000
+```  
+And provide load balancing between 2 underlying Pods:
+```
+type: LoadBalancer
+```
+
+Now all we have to do is to deploy the Kubernetes service using the .yaml file
+```
+cd <yaml file location>
+kubectl create -f wide_deep_k8s.yaml
+
+deployment "wide-deep-deployment" created
+service "wide-deep-service" created
+```
+Check the deployment:
+```
+kubectl get deployment
+
+NAME                   DESIRED   CURRENT   UP-TO-DATE   AVAILABLE   AGE
+wide-deep-deployment   2         2         2            2           37s
+```
+Check the service:
+```
+kubectl get service
+
+NAME                TYPE           CLUSTER-IP      EXTERNAL-IP      PORT(S)          AGE
+kubernetes          ClusterIP      10.19.240.1     <none>           443/TCP          1m
+wide-deep-service   LoadBalancer   10.19.247.108   35.197.136.221   9000:32314/TCP   50s
+```
+Check the pods:
+```
+kubectl get pods
+
+NAME                                    READY     STATUS              RESTARTS   AGE
+wide-deep-deployment-1890294076-d4lpz   0/1       ContainerCreating   0          19s
+wide-deep-deployment-1890294076-sxngn   0/1       ContainerCreating   0          19s
+```
+Hint: Experience failing multiple times previously tells me that the pods are the most problematic ones and needs the debugging the most. For instance you may encounter an error like below where status is not ContainerCreating or Running (the correct ones) but instead something else:
+```
+kubectl get pods
+
+NAME                                    READY     STATUS             RESTARTS   AGE
+wide-deep-deployment-1578830529-5wwwj   0/1       ImagePullBackOff   0          1m
+wide-deep-deployment-1578830529-l6bpz   0/1       ImagePullBackOff   0          1m
+```
+
+One useful tip to debug is check its logs. For instance, to check the details for pod ```wide-deep-deployment-1890294076-d4lpz```, we use this command:
+```
+kubectl describe pods wide-deep-deployment-1890294076-d4lpz
+```
+This will show some events that you can use to debug like the ones below:
+```
+Events:
+  Type     Reason                 Age               From                                                          Message
+  ----     ------                 ----              ----                                                          -------
+  Normal   Scheduled              2m                default-scheduler                                             Successfully assigned wide-deep-deployment-1578830529-5wwwj to gke-wide-deep-serving-cl-default-pool-ab264915-p3xk
+  Normal   SuccessfulMountVolume  2m                kubelet, gke-wide-deep-serving-cl-default-pool-ab264915-p3xk  MountVolume.SetUp succeeded for volume "default-token-t2wjz"
+  Normal   Pulling                55s (x4 over 2m)  kubelet, gke-wide-deep-serving-cl-default-pool-ab264915-p3xk  pulling image "gcr.io/tensorflow-serving-187205/wide"
+  Warning  Failed                 54s (x4 over 2m)  kubelet, gke-wide-deep-serving-cl-default-pool-ab264915-p3xk  Failed to pull image "gcr.io/tensorflow-serving-187205/wide": rpc error: code = 2 desc = Error: Status 405 trying to pull repository tensorflow-serving-187205/wide: "v1 Registry API is disabled. If you are not explicitly using the v1 Registry API, it is possible your v2 image could not be found. Verify that your image is available, or retry with `dockerd --disable-legacy-registry`. See https://cloud.google.com/container-registry/docs/support/deprecation-notices"
+  Warning  FailedSync             7s (x12 over 2m)  kubelet, gke-wide-deep-serving-cl-default-pool-ab264915-p3xk  Error syncing pod
+  Normal   BackOff                7s (x8 over 2m)   kubelet, gke-wide-deep-serving-cl-default-pool-ab264915-p3xk  Back-off pulling image "gcr.io/tensorflow-serving-187205/wide"
+```
+For this example, my image argument in the yaml file was wrong, i pushed the image into the Google Cloud Registry as ```gcr.io/tensorflow-serving-187205/wide_deep``` but instead i used ```gcr.io/tensorflow-serving-187205/wide``` for the image argument in the yaml file.
+
+You can describe the service as well using the command below:
+```
+kubectl describe service wide-deep-service
+
+Name:                     wide-deep-service
+Namespace:                default
+Labels:                   run=wide-deep-service
+Annotations:              <none>
+Selector:                 app=wide-deep-server
+Type:                     LoadBalancer
+IP:                       10.19.247.108
+LoadBalancer Ingress:     35.197.136.221
+Port:                     <unset>  9000/TCP
+TargetPort:               9000/TCP
+NodePort:                 <unset>  32314/TCP
+Endpoints:                10.16.0.15:9000,10.16.1.16:9000
+Session Affinity:         None
+External Traffic Policy:  Cluster
+Events:
+  Type    Reason                Age   From                Message
+  ----    ------                ----  ----                -------
+  Normal  CreatingLoadBalancer  1m    service-controller  Creating load balancer
+  Normal  CreatedLoadBalancer   24s   service-controller  Created load balancer
+```
+
+Once you reach this step, congrats, you have deployed the Kubernetes cluster successfully. All that is left is really to test the service with a client.
 
 ## Credits and Useful Links (I'm spamming abit but that's how many links I referenced):
 
