@@ -498,6 +498,14 @@ string_val: "1"
 ```
 Congratulations if you reach this point, you would have deployed a wide and deep learning model in the cloud in Kubernetes.
 
+## Conclusion
+
+This entire document outlines the flow from creating a wide and deep learning model, to containerizing it, to finally deploying it on GCP in Kubernetes. This doucmentation is mainly for me to note down what I was doing but if you ever stumble upon it and find it useful it would be great, as inside it contains info I wish I knew when I first tried it out. I had to spend hours googling before I found out these stuff.
+
+Then again, if these set of instructions don't work for you, don't give up. It is understandable as my setup will be different from yours (Ubuntu vs Windows, Python 2.7 vs 3.5 etc.). However, my advice will be to google any error message you see and likely there will be some way online you can use to solve your problem, because thats what I did for mine.
+
+Please feel free to contact me if there's any questions or if there's anything wrong in this documentation.
+
 ## Credits and Useful Links (I'm spamming abit but that's how many links I referenced):
 
 1. Vitaly Bezgachev's awesome posts, [Part 1](https://towardsdatascience.com/how-to-deploy-machine-learning-models-with-tensorflow-part-1-make-your-model-ready-for-serving-776a14ec3198), [Part 2](https://towardsdatascience.com/how-to-deploy-machine-learning-models-with-tensorflow-part-2-containerize-it-db0ad7ca35a7) and [Part 3](https://towardsdatascience.com/how-to-deploy-machine-learning-models-with-tensorflow-part-3-into-the-cloud-7115ff774bb6). He used Azure but I had some issues with Azure cli so I used GCP instead.
