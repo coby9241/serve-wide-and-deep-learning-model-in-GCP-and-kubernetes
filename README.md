@@ -158,11 +158,11 @@ Check if you are able to run the tensorflow_model_server using this command:
 ```
 bazel-bin/tensorflow_serving/model_servers/tensorflow_model_server
 ```
-If yes, you are good to go, else if you encounter an error such as no such file or directory (like me) you have to install the *tensorflow_model_server* in your image externally using the instructions in this [link](https://www.tensorflow.org/serving/setup)
+If yes, you are good to go, else if you encounter an error such as no such file or directory (like me) you have to install the ```tensorflow_model_server``` in your image externally using the instructions in this [link](https://www.tensorflow.org/serving/setup)
 
-Note: this will affect your deployment of the image in the cloud later as the .yaml file used to deploy the Kubernetes Cluster will be affected by this. My guide later assumes the above command cannot work and I installed the *tensorflow_model_server* using *apt-get*. If you wish to still use the above command to run it, I suggest you learn abit about how kubectl commands and the yaml file works to write your own file so that you know how to modify it. 
+Note: this will affect your deployment of the image in the cloud later as the .yaml file used to deploy the Kubernetes Cluster will be affected by this. My guide later assumes the above command cannot work and I installed the ```tensorflow_model_server``` using ```apt-get```. If you wish to still use the above command to run it, I suggest you learn abit about how kubectl commands and the yaml file works to write your own file so that you know how to modify it. 
 
-To install *tensorflow_model_server*, follow these two steps:
+To install ```tensorflow_model_server```, follow these two steps:
 1. Add TensorFlow Serving distribution URI as a package source (one time setup)
 ```
 echo "deb [arch=amd64] http://storage.googleapis.com/tensorflow-serving-apt stable tensorflow-model-server tensorflow-model-server-universal" | tee /etc/apt/sources.list.d/tensorflow-serving.list
@@ -175,6 +175,56 @@ apt-get update && apt-get install tensorflow-model-server
 ```
 Once installed, the binary can be invoked using the command ```tensorflow_model_server```.
 
+### Deploying the model locally
+
+Next you copy the exported model with the protobuff and the variables folder. From the Windows CLI (not the docker shell):
+```
+cd <path before export folder>
+docker cp ./export tensorflow_container:/serving
+```
+This copies the export folder to the /serving folder in the Docker Container tensorflow_container.
+
+To check if the folder is copied properly.
+```
+cd /serving/export/1511606217
+ls
+```
+You should see the saved_model protobuff and the variables folder.
+```
+root@1726471e9694:/serving/export/1511606217# ls
+saved_model.pb  variables
+```
+To start hosting the model locally, run this command from the root directory ```/```:
+```
+root@1726471e9694:/# tensorflow_model_server --port=9000 --model_name=wide_deep --model_base_path=/serving/export &> wide_deep_log &
+[2] 1600
+```
+Some explaination for the arguments. ```--port=9000``` specifies the port number and ```--model_name=wide_deep``` specifies the name. Both can be any number or any string but it is important as later in client python file these arguments will have to be added in when sending the request.
+The ```model_base_path``` argument is fixed and it points to the directory of the export folder you copied just now to the docker container. ```&> wide_deep_log``` redirects the stdout to this file wide_deep_log. (see [this](https://superuser.com/questions/335396/what-is-the-difference-between-and-in-bash/335415)).
+
+To check if the model is hosted properly, run this command:
+```
+cat wide_deep_log
+```
+You should see output similar to this (especially the last line where it says running model server at host and port):
+```
+root@1726471e9694:/# cat wide_deep_log
+2017-11-26 11:34:03.694919: I tensorflow_serving/model_servers/main.cc:147] Building single TensorFlow model file config:  model_name: wide_deep model_base_path: /serving/export
+2017-11-26 11:34:03.695029: I tensorflow_serving/model_servers/server_core.cc:441] Adding/updating models.
+2017-11-26 11:34:03.695043: I tensorflow_serving/model_servers/server_core.cc:492]  (Re-)adding model: wide_deep
+2017-11-26 11:34:03.695428: I tensorflow_serving/core/basic_manager.cc:705] Successfully reserved resources to load servable {name: wide_deep version: 1511606217}
+2017-11-26 11:34:03.695441: I tensorflow_serving/core/loader_harness.cc:66] Approving load for servable version {name: wide_deep version: 1511606217}
+2017-11-26 11:34:03.695449: I tensorflow_serving/core/loader_harness.cc:74] Loading servable version {name: wide_deep version: 1511606217}
+2017-11-26 11:34:03.695463: I external/org_tensorflow/tensorflow/contrib/session_bundle/bundle_shim.cc:360] Attempting to load native SavedModelBundle in bundle-shim from: /serving/export/1511606217
+2017-11-26 11:34:03.695473: I external/org_tensorflow/tensorflow/cc/saved_model/loader.cc:236] Loading SavedModel from: /serving/export/1511606217
+2017-11-26 11:34:03.747962: I external/org_tensorflow/tensorflow/cc/saved_model/loader.cc:155] Restoring SavedModel bundle.
+2017-11-26 11:34:03.781389: I external/org_tensorflow/tensorflow/cc/saved_model/loader.cc:190] Running LegacyInitOp on SavedModel bundle.
+2017-11-26 11:34:03.799166: I external/org_tensorflow/tensorflow/cc/saved_model/loader.cc:284] Loading SavedModel: success. Took 103168 microseconds.
+2017-11-26 11:34:03.801735: I tensorflow_serving/core/loader_harness.cc:86] Successfully loaded servable version {name: wide_deep version: 1511606217}
+E1126 11:34:03.802407393    1600 ev_epoll1_linux.c:1051]     grpc epoll fd: 3
+2017-11-26 11:34:03.803215: I tensorflow_serving/model_servers/main.cc:288] Running ModelServer at 0.0.0.0:9000 ...
+```
+Congrats, you have successfully served a Tensorflow model locally.
 
 
 ## Credits and Useful Links (I'm spamming abit but that's how many links I referenced):
