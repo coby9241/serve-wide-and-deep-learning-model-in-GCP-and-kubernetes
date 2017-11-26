@@ -503,6 +503,8 @@ string_val: "1"
 ```
 Congratulations if you reach this point, you would have deployed a wide and deep learning model in the cloud in Kubernetes.
 
+<strong>Finally, please remember to delete the project after you finished, else it will keep on charging! Deleting the service isn't enough!</strong>
+
 ## Conclusion
 
 This entire document outlines the flow from creating a wide and deep learning model, to containerizing it, to finally deploying it on GCP in Kubernetes. This doucmentation is mainly for me to note down what I was doing but if you ever stumble upon it and find it useful it would be great, as inside it contains info I wish I knew when I first tried it out. I had to spend hours googling before I found out these stuff.
