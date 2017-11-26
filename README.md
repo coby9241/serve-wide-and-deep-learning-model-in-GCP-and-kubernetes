@@ -234,12 +234,17 @@ For me I used GCP, they have the $300 credits thing that you can use to try out 
 ### Creating a project, installing Google SDK and Kubectl
 
 Create a new project named tensorflow-serving. Remember this ID somewhere because it will be used later.
+
 ![New Project](/images/tensorflow_new_project.png)
 
+
 Make sure you enabled the Container Engine API by going to the Kubernetes Window in the Project Dashboard.
+
 ![Enable API](/images/enable_container_API.png)
 
+
 Install Google SDK as well.
+
 ![Install SDK](/images/install_SDK.png)
 
 Finally, run this command in CLI to install Kubectl, command line interface for Kubernetes:
