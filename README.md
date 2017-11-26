@@ -76,7 +76,7 @@ Do check that the saved_model.pb and variables folder is created from the run, a
 As a side track, before you start on this part, remember to install Docker/Docker Toolbox(if you do not have Hyper-V).
 For Docker Toolbox users, especially Windows users, the docker commands are not readly available in the command line. Here are some simple steps to enable it.
 
-Step 1. Run this command in your CLI
+1. Run this command in your CLI
 ```
 docker-machine env <name-of-your-docker-image> 
 ```
@@ -86,7 +86,7 @@ docker-machine env default
 ```
 which I checked from my Oracle VirtualBox.
 
-Step 2. These lines will then appear:
+2. These lines will then appear:
 ```
 SET DOCKER_TLS_VERIFY=1
 SET DOCKER_HOST=tcp://192.168.99.100:2376
