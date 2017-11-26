@@ -441,6 +441,63 @@ Events:
 
 Once you reach this step, congrats, you have deployed the Kubernetes cluster successfully. All that is left is really to test the service with a client.
 
+### Testing the service with a client
+
+I have included a client file wide_and_deep_client.py. Inside the client file I have hardcoded a single data point as an example due to laziness (my bad), but it should not be difficult for you to do some argparse and accept a json file for instance and convert it into inputs for the model. To modify the inputs, just simply change my hard coded inputs for each input line into your own ones. For example, for input 'C1', if you have a variable ```input_C1``` extracted from some json file and etc, just change the line from:
+```
+request.inputs['C1'].CopyFrom(tf.contrib.util.make_tensor_proto("68fd1e64", shape=[1]))
+```
+to 
+```
+request.inputs['C1'].CopyFrom(tf.contrib.util.make_tensor_proto(input_C1, shape=[1]))
+```
+should do the trick.
+
+Follow these steps to run the client py file.
+```
+cd <folder where client.py file is>
+python wide_and_deep_client.py --server=35.197.136.221:9000
+```
+In this case ```35.197.136.221``` was my external IP which the service was hosted. It should be different for your case so do check it out using ```kubectl get service``` command.
+
+You should see:
+```
+True label: 1
+Prediction: 1
+```
+as the output. 
+Uncomment this line:
+```
+# print('Prediction: ' + str(prediction))
+``` 
+if you want to see the entire TensorProto which will look like this:
+```
+Prediction: {u'probabilities': dtype: DT_FLOAT
+tensor_shape {
+  dim {
+    size: 1
+  }
+  dim {
+    size: 2
+  }
+}
+float_val: 0.37165120244
+float_val: 0.628348827362
+, u'classes': dtype: DT_STRING
+tensor_shape {
+  dim {
+    size: 1
+  }
+  dim {
+    size: 2
+  }
+}
+string_val: "0"
+string_val: "1"
+}
+```
+Congratulations if you reach this point, you would have deployed a wide and deep learning model in the cloud in Kubernetes.
+
 ## Credits and Useful Links (I'm spamming abit but that's how many links I referenced):
 
 1. Vitaly Bezgachev's awesome posts, [Part 1](https://towardsdatascience.com/how-to-deploy-machine-learning-models-with-tensorflow-part-1-make-your-model-ready-for-serving-776a14ec3198), [Part 2](https://towardsdatascience.com/how-to-deploy-machine-learning-models-with-tensorflow-part-2-containerize-it-db0ad7ca35a7) and [Part 3](https://towardsdatascience.com/how-to-deploy-machine-learning-models-with-tensorflow-part-3-into-the-cloud-7115ff774bb6). He used Azure but I had some issues with Azure cli so I used GCP instead.
