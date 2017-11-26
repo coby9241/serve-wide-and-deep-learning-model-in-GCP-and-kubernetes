@@ -2,7 +2,8 @@
 
 This guide consists of two main parts:
 1. Creating and training a wide & deep learning model, and exporting it
-2. Containerizing the model and making it available for serving in the cloud
+2. Containerizing the model and serving it locally
+3. Serving it on the cloud
 
 Throughout this guide, I highly recommend you follow these 2 links:
 - Vitaly Bezgachev's awesome posts, [Part 1](https://towardsdatascience.com/how-to-deploy-machine-learning-models-with-tensorflow-part-1-make-your-model-ready-for-serving-776a14ec3198), [Part 2](https://towardsdatascience.com/how-to-deploy-machine-learning-models-with-tensorflow-part-2-containerize-it-db0ad7ca35a7) and [Part 3](https://towardsdatascience.com/how-to-deploy-machine-learning-models-with-tensorflow-part-3-into-the-cloud-7115ff774bb6)
@@ -68,7 +69,7 @@ It will then output a folder _models_ which will contain the model folder *model
 
 Do check that the saved_model.pb and variables folder is created from the run, and this will conclude the exporting of a trained model from Tensorflow. Next will be the containerization and serving it in the cloud.
 
-## 2. Containerizing the model and making it available for serving in the cloud
+## 2. Containerizing the model and serving it locally
 
 ### Install Docker/Docker Toolbox
 
@@ -226,6 +227,23 @@ E1126 11:34:03.802407393    1600 ev_epoll1_linux.c:1051]     grpc epoll fd: 3
 ```
 Congrats, you have successfully served a Tensorflow model locally.
 
+## 3. Serving it on the cloud
+
+For me I used GCP, they have the $300 credits thing that you can use to try out these project. Just make sure you have the 300 dollar credits in your account under the billing section.
+
+### Creating a project
+
+![New Project](/images/tensorflow_new_project.png)
+
+
+### Installing Google Cloud SDK
+
+### Preparing the container
+
+First we need to find the container we need to push to the cloud. Run this command:
+```
+docker ps --all
+```
 
 ## Credits and Useful Links (I'm spamming abit but that's how many links I referenced):
 
